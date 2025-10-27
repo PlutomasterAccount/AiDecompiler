@@ -63,12 +63,12 @@ saveinstance({
     
     Callback = function(content)
         game:GetService("StarterGui"):SetCore("SendNotification", {
-            Title = "Plutomaster Decompiler",
+            Title = "Claude AI Decompiler",
             Text = "Analyzing scripts...",
             Duration = 3
         })
         
-        print("Starting Plutomaster Decompiler...")
+        print("Starting Claude AI Decompiler...")
         print("Analyzing game structure...")
         
         local modified = content
@@ -110,7 +110,25 @@ saveinstance({
             print("✓ Successfully decompiled")
             
             local escaped = source:gsub("[%(%)%.%%%+%-%*%?%[%]%^%$]", "%%%1")
-            modified = modified:gsub('<ProtectedString name="Source">' .. escaped .. '</ProtectedString>', '<ProtectedString name="Source">' .. cleaned .. '</ProtectedString>', 1)
+            
+            local replaceSuccess = pcall(function()
+                modified = modified:gsub('<ProtectedString name="Source">' .. escaped .. '</ProtectedString>', '<ProtectedString name="Source">' .. cleaned .. '</ProtectedString>', 1)
+            end)
+            
+            if not replaceSuccess then
+                warn("⚠ Error replacing script " .. i .. ", using original decompiler")
+                print("Falling back to original decompiler...")
+                
+                game:GetService("StarterGui"):SetCore("SendNotification", {
+                    Title = "Fallback Mode",
+                    Text = "Script " .. i .. " using original decompiler",
+                    Duration = 2
+                })
+                
+                modified = modified:gsub('<ProtectedString name="Source">' .. escaped .. '</ProtectedString>', '<ProtectedString name="Source">' .. source .. '</ProtectedString>', 1)
+                
+                print("✓ Fallback successful, continuing...")
+            end
         end
         
         local totalTime = math.floor(tick() - start)
