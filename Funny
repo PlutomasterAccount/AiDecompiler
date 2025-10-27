@@ -1,0 +1,137 @@
+local HttpService = game:GetService("HttpService")
+
+if not getgenv().CLAUDE_API_KEY or getgenv().CLAUDE_API_KEY == "" then
+    game:GetService("StarterGui"):SetCore("SendNotification", {
+        Title = "API Key Missing!",
+        Text = "Please set your Gemini API key first",
+        Duration = 10
+    })
+    error("API Key not set. Please configure CLAUDE_API_KEY")
+end
+
+local API_KEY = getgenv().CLAUDE_API_KEY
+local API_URL = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=" .. API_KEY
+
+local function decompile(code)
+    local ok, res = pcall(function()
+        local body = HttpService:JSONEncode({
+            contents = {{
+                parts = {{
+                    text = "Rename variables/functions clearly. Remove ALL comments. Output ONLY code:\n\n" .. code
+                }}
+            }}
+        })
+        
+        local resp = request({
+            Url = API_URL,
+            Method = "POST",
+            Headers = {["Content-Type"] = "application/json"},
+            Body = body
+        })
+        
+        if resp.StatusCode == 200 then
+            local data = HttpService:JSONDecode(resp.Body)
+            local text = data.candidates[1].content.parts[1].text
+            
+            if text:match("```") then
+                text = text:gsub("```[%w]*\n", ""):gsub("\n```", ""):gsub("```", "")
+            end
+            
+            return text
+        end
+        
+        return code
+    end)
+    
+    return ok and res or code
+end
+
+local params = {
+    RepoURL = "https://raw.githubusercontent.com/luau/SynSaveInstance/main/",
+    SSI = "saveinstance",
+}
+
+local saveinstance = loadstring(game:HttpGet(params.RepoURL .. params.SSI .. ".luau", true), params.SSI)()
+
+local count = 0
+local start = tick()
+
+saveinstance({
+    noscripts = false,
+    timeout = 15,
+    ShowStatus = true,
+    
+    Callback = function(content)
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Plutomaster Decompiler",
+            Text = "Analyzing scripts...",
+            Duration = 3
+        })
+        
+        print("Starting Plutomaster Decompiler...")
+        print("Analyzing game structure...")
+        
+        local modified = content
+        local scriptData = {}
+        
+        for source in content:gmatch('<ProtectedString name="Source">(.-)</ProtectedString>') do
+            if source ~= "" and #source > 10 then
+                table.insert(scriptData, source)
+            end
+        end
+        
+        local totalScripts = #scriptData
+        print("Found " .. totalScripts .. " scripts to decompile")
+        
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Found Scripts",
+            Text = totalScripts .. " scripts detected",
+            Duration = 3
+        })
+        
+        for i, source in ipairs(scriptData) do
+            count = count + 1
+            local percentage = math.floor((i / totalScripts) * 100)
+            
+            game:GetService("StarterGui"):SetCore("SendNotification", {
+                Title = "Decompiling [" .. percentage .. "%]",
+                Text = "Script " .. i .. "/" .. totalScripts .. " (" .. #source .. " chars)",
+                Duration = 2
+            })
+            
+            print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
+            print("Decompiling script " .. i .. " of " .. totalScripts)
+            print("Characters: " .. #source)
+            print("Progress: " .. percentage .. "%")
+            print("Sending to Gemini AI...")
+            
+            local cleaned = decompile(source)
+            
+            print("✓ Successfully decompiled")
+            
+            local escaped = source:gsub("[%(%)%.%%%+%-%*%?%[%]%^%$]", "%%%1")
+            modified = modified:gsub('<ProtectedString name="Source">' .. escaped .. '</ProtectedString>', '<ProtectedString name="Source">' .. cleaned .. '</ProtectedString>', 1)
+        end
+        
+        local totalTime = math.floor(tick() - start)
+        
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Complete!",
+            Text = count .. " scripts in " .. totalTime .. "s",
+            Duration = 5
+        })
+        
+        print("Successfully decompiled " .. count .. " scripts in " .. totalTime .. " seconds")
+        
+        local file = "Decompiled_" .. game.GameId .. ".rbxlx"
+        writefile(file, modified)
+        
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Saved!",
+            Text = file,
+            Duration = 5
+        })
+        
+        print("File saved: " .. file)
+    end
+})
