@@ -2,11 +2,11 @@ local HttpService = game:GetService("HttpService")
 
 if not getgenv().CLAUDE_API_KEY or getgenv().CLAUDE_API_KEY == "" then
     game:GetService("StarterGui"):SetCore("SendNotification", {
-        Title = "API Key Missing!",
-        Text = "Please set your Gemini API key first",
-        Duration = 10
+        Title = "API Key Missing",
+        Text = "Please set your API key",
+        Duration = 5
     })
-    error("API Key not set. Please configure CLAUDE_API_KEY")
+    error("API Key not configured")
 end
 
 local API_KEY = getgenv().CLAUDE_API_KEY
@@ -68,8 +68,7 @@ saveinstance({
             Duration = 3
         })
         
-        print("Starting Claude AI Decompiler...")
-        print("Analyzing game structure...")
+        print("Starting decompiler...")
         
         local modified = content
         local scriptData = {}
@@ -81,12 +80,12 @@ saveinstance({
         end
         
         local totalScripts = #scriptData
-        print("Found " .. totalScripts .. " scripts to decompile")
+        print("Found " .. totalScripts .. " scripts")
         
         game:GetService("StarterGui"):SetCore("SendNotification", {
             Title = "Found Scripts",
             Text = totalScripts .. " scripts detected",
-            Duration = 3
+            Duration = 2
         })
         
         for i, source in ipairs(scriptData) do
@@ -100,10 +99,8 @@ saveinstance({
             })
             
             print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-            print("Decompiling script " .. i .. " of " .. totalScripts)
-            print("Characters: " .. #source)
-            print("Progress: " .. percentage .. "%")
-            print("Sending to Gemini AI...")
+            print("Script " .. i .. "/" .. totalScripts .. " (" .. percentage .. "%)")
+            print("Decompiling...")
             
             local cleaned = decompile(source)
             
@@ -116,18 +113,17 @@ saveinstance({
             end)
             
             if not replaceSuccess then
-                warn("⚠ Error replacing script " .. i .. ", using original decompiler")
-                print("Falling back to original decompiler...")
+                warn("Error on script " .. i .. ", using fallback")
                 
                 game:GetService("StarterGui"):SetCore("SendNotification", {
                     Title = "Fallback Mode",
-                    Text = "Script " .. i .. " using original decompiler",
+                    Text = "Script " .. i .. " fallback",
                     Duration = 2
                 })
                 
                 modified = modified:gsub('<ProtectedString name="Source">' .. escaped .. '</ProtectedString>', '<ProtectedString name="Source">' .. source .. '</ProtectedString>', 1)
                 
-                print("✓ Fallback successful, continuing...")
+                print("✓ Fallback complete")
             end
         end
         
@@ -139,7 +135,7 @@ saveinstance({
             Duration = 5
         })
         
-        print("Successfully decompiled " .. count .. " scripts in " .. totalTime .. " seconds")
+        print("Decompiled " .. count .. " scripts in " .. totalTime .. "s")
         
         local file = "Decompiled_" .. game.GameId .. ".rbxlx"
         writefile(file, modified)
@@ -150,6 +146,6 @@ saveinstance({
             Duration = 5
         })
         
-        print("File saved: " .. file)
+        print("Saved: " .. file)
     end
 })
